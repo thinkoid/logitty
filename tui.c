@@ -24,8 +24,8 @@
 static const char *console = "/dev/console";
 static const int tty = 2;
 
-static const int w = 36, h = 10;
-static const int padding = 2;
+static const int w = 40, h = 11;
+static const int padding = 1;
 
 static int switch_tty(int tty)
 {
@@ -35,8 +35,8 @@ static int switch_tty(int tty)
                 return 1;
         }
 
-	ioctl(fd, VT_ACTIVATE, tty);
-	ioctl(fd, VT_WAITACTIVE, tty);
+        ioctl(fd, VT_ACTIVATE, tty);
+        ioctl(fd, VT_WAITACTIVE, tty);
 
         close(fd);
 
@@ -113,6 +113,8 @@ static FIELD *make_field(int h, int w, int y, int x, const char *label)
                 else {
                         field_opts_on(pf, O_ACTIVE);
                         field_opts_on(pf, O_EDIT);
+                        field_opts_off(pf, O_AUTOSKIP);
+                        field_opts_off(pf, O_STATIC);
                 }
         }
 
@@ -121,23 +123,59 @@ static FIELD *make_field(int h, int w, int y, int x, const char *label)
 
 static FIELD *make_login_label()
 {
-        return make_field(1, 11, 3, 3, "login    : ");
+        return make_field(1, 11, 5, 3, "login    : ");
 }
 
 static FIELD *make_login_field()
 {
-        return make_field(1, 14, 3, 14, 0);
+        return make_field(1, 14, 5, 14, 0);
 }
 
 static FIELD *make_passwd_label()
 {
-        return make_field(1, 11, 5, 3, "password : ");
+        return make_field(1, 11, 7, 3, "password : ");
 }
 
 static FIELD *make_passwd_field()
 {
-        FIELD *pf = make_field(1, 14, 5, 14, 0);
+        FIELD *pf = make_field(1, 14, 7, 14, 0);
         field_opts_off(pf, O_PUBLIC);
+        return pf;
+}
+
+static FIELD *make_target_field()
+{
+        return make_field(1, 14, 3, 13, "< xinitrc   >");
+}
+
+static FIELD *make_host_label()
+{
+        char buf[32], *pbuf = buf;
+        size_t n, i;
+
+        FIELD *pf;
+
+        pbuf = hostname(buf, sizeof buf);
+        if (0 == pbuf) {
+                fprintf(stderr, "could not get host info\n");
+                return 0;
+        }
+
+        n = strlen(pbuf);
+        if (n > 32) {
+                for (i = 30; pbuf[i]; ++i) {
+                        pbuf[i] = '.';
+                }
+
+                pbuf[32] = 0;
+                n = 32;
+        }
+
+        pf = make_field(1, n, 1, (w - n) / 2 - 1, pbuf);
+
+        if (pbuf != buf)
+                free(pbuf);
+
         return pf;
 }
 
@@ -151,19 +189,23 @@ static void free_fields(FIELD **pptr)
 
 static FIELD **make_fields()
 {
-        FIELD **fields = (FIELD **)malloc(5 * sizeof(FIELD *));
+        FIELD **fields = (FIELD **)malloc(7 * sizeof(FIELD *));
         if (0 == fields)
                 return 0;
 
-        fields[0] = make_login_label();
-        fields[1] = make_login_field();
+        fields[0] = make_host_label();
+        fields[1] = make_target_field();
 
-        fields[2] = make_passwd_label();
-        fields[3] = make_passwd_field();
+        fields[2] = make_login_label();
+        fields[3] = make_login_field();
 
-        fields[4] = 0;
+        fields[4] = make_passwd_label();
+        fields[5] = make_passwd_field();
 
-        if (0 == fields[0] || 0 == fields[1] || 0 == fields[2] || 0 == fields[3]) {
+        fields[6] = 0;
+
+        if (0 == fields[0] || 0 == fields[1] || 0 == fields[2] ||
+            0 == fields[3] || 0 == fields[4] || 0 == fields[5]) {
                 free_fields(fields);
                 return 0;
         }
@@ -195,16 +237,16 @@ static void free_screen(struct screen_t *screen)
 
 static void initialize()
 {
-	initscr();
+        initscr();
 
-	noecho();
-	cbreak();
+        noecho();
+        cbreak();
 
-	keypad(stdscr, TRUE);
+        keypad(stdscr, TRUE);
 
-        if (h > LINES + 3 || w > COLS) {
+        if (h + 3 > LINES || w > COLS) {
                 fprintf(stderr, "screen too small (%d x %d)\n",
-                        COLS, LINES + 3);
+                        COLS, LINES);
                 endwin();
                 exit(1);
         }
@@ -212,16 +254,13 @@ static void initialize()
         signals();
 }
 
-static void redraw_screen(struct screen_t *screen)
+static void draw_screen(struct screen_t *screen)
 {
         if (screen) {
                 mvprintw(0, 0, "F1 reboot  F2 shutdown");
                 refresh();
 
                 box(screen->win, 0, 0);
-
-                mvwprintw(screen->sub, 1, 13, "< xinitrc   >");
-                /* box(screen->sub, 0, 0); */
 
                 wrefresh(screen->win);
                 wrefresh(screen->sub);
@@ -233,8 +272,8 @@ static struct screen_t *make_screen()
         struct screen_t *screen;
         int x, y;
 
-        x =  (COLS - w) / 2;
-        y = (LINES - h) / 2;
+        x = (float)( COLS - w) / 2 + 1;
+        y = (float)(LINES - h) / 2 + 1;
 
         screen = (struct screen_t *)malloc(sizeof *screen);
         if (0 == screen) {
@@ -242,13 +281,13 @@ static struct screen_t *make_screen()
                 goto err;
         }
 
-	screen->win = newwin(h, w, y, x);
+        screen->win = newwin(h, w, y, x);
         if (0 == screen->win) {
                 fprintf(stderr, "failed to create window\n");
                 goto err;
         }
 
-	screen->sub = derwin(
+        screen->sub = derwin(
                 screen->win, h - 2 * padding, w - 2 * padding,
                 padding, padding);
         if (0 == screen->sub) {
@@ -262,16 +301,11 @@ static struct screen_t *make_screen()
                 goto err;
         }
 
-	screen->form = new_form(screen->fields);
-	if (0 == screen->form) {
+        screen->form = new_form(screen->fields);
+        if (0 == screen->form) {
                 fprintf(stderr, "failed to create form\n");
                 goto err;
         }
-
-	set_form_win(screen->form, screen->win);
-	set_form_sub(screen->form, screen->sub);
-
-        post_form(screen->form);
 
         return screen;
 
@@ -293,7 +327,6 @@ int main()
         UNUSED(tty);
         UNUSED(hostname);
         UNUSED(switch_tty);
-        UNUSED(redraw_screen);
 
         initialize();
 
@@ -303,12 +336,17 @@ int main()
                 exit(1);
         }
 
-        redraw_screen(screen);
+        set_form_win(screen->form, screen->win);
+        set_form_sub(screen->form, screen->sub);
+
+        post_form(screen->form);
+
+        draw_screen(screen);
 
         f = screen->form;
         fs = screen->fields;
 
-	for (c = getch(); c != KEY_F(1); c = getch()) {
+        for (c = getch(); c != KEY_F(1); c = getch()) {
                 switch (c) {
                 case KEY_F(2):
                         form_driver(f, REQ_VALIDATION);
@@ -318,13 +356,13 @@ int main()
 
                         move(LINES - 3, 2);
 
-                        pbuf = wstrim(field_buffer(fs[1], 0), buf, sizeof buf);
+                        pbuf = wstrim(field_buffer(fs[3], 0), buf, sizeof buf);
                         printw("[%s] : ", pbuf);
 
                         if (pbuf != buf)
                                 free(pbuf);
 
-                        pbuf = wstrim(field_buffer(fs[3], 0), buf, sizeof buf);
+                        pbuf = wstrim(field_buffer(fs[5], 0), buf, sizeof buf);
                         printw("[%s]", pbuf);
 
                         if (pbuf != buf)
