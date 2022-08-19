@@ -1,17 +1,11 @@
 // -*- mode: c++; -*-
 
 #include <assert.h>
-#include <cerrno>
-#include <climits>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-
-#include <iostream>
-#include <limits>
-#include <stdexcept>
-#include <string>
-#include <vector>
+#include <errno.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <linux/vt.h>
 #include <signal.h>
@@ -29,11 +23,13 @@ static const int tty = 2;
 static const int w = 36, h = 10;
 static const int padding = 2;
 
-static void switch_tty(int tty)
+static int switch_tty(int tty)
 {
 	FILE* pf = fopen(console, "w");
-	if (0 == pf)
-                throw std::runtime_error("failed to open console");
+	if (0 == pf) {
+                fprintf(stderr, "failed to open console\n");
+                return 1;
+        }
 
 	int fd = fileno(pf);
 
@@ -41,6 +37,8 @@ static void switch_tty(int tty)
 	ioctl(fd, VT_WAITACTIVE, tty);
 
         fclose(pf);
+
+        return 0;
 }
 
 struct screen_t {
