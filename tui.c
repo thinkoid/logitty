@@ -1,19 +1,23 @@
-// -*- mode: c++; -*-
+/* -*- mode: c; -*- */
 
 #include <assert.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <limits.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <linux/vt.h>
-#include <signal.h>
 #include <sys/ioctl.h>
-#include <unistd.h>
+#include <sys/utsname.h>
 
 #include <ncurses.h>
 #include <form.h>
+
+#include <utils.h>
 
 #define UNUSED(x) ((void)(x))
 
@@ -25,18 +29,16 @@ static const int padding = 2;
 
 static int switch_tty(int tty)
 {
-	FILE* pf = fopen(console, "w");
-	if (0 == pf) {
-                fprintf(stderr, "failed to open console\n");
+        int fd = open(console, O_WRONLY);
+        if (0 > fd) {
+                perror("console");
                 return 1;
         }
-
-	int fd = fileno(pf);
 
 	ioctl(fd, VT_ACTIVATE, tty);
 	ioctl(fd, VT_WAITACTIVE, tty);
 
-        fclose(pf);
+        close(fd);
 
         return 0;
 }
@@ -47,10 +49,14 @@ struct screen_t {
         WINDOW *win, *sub;
 };
 
-static const char *hostname()
+static char *hostname(char *buf, size_t len)
 {
-        static char buf[HOST_NAME_MAX + 1] = { 0 };
-        return 0 == gethostname(buf, sizeof buf) ? buf : 0;
+        struct utsname utsname;
+
+        if (0 > uname(&utsname))
+                return 0;
+
+        return snprintf_(buf, len, "%s", utsname.nodename);
 }
 
 static void signal_handler(int n)
@@ -215,7 +221,7 @@ static void redraw_screen(struct screen_t *screen)
                 box(screen->win, 0, 0);
 
                 mvwprintw(screen->sub, 1, 13, "< xinitrc   >");
-                // box(screen->sub, 0, 0);
+                /* box(screen->sub, 0, 0); */
 
                 wrefresh(screen->win);
                 wrefresh(screen->sub);
@@ -284,6 +290,7 @@ int main()
 
         struct screen_t *screen = 0;
 
+        UNUSED(tty);
         UNUSED(hostname);
         UNUSED(switch_tty);
         UNUSED(redraw_screen);
@@ -306,7 +313,6 @@ int main()
                 case KEY_F(2):
                         form_driver(f, REQ_VALIDATION);
 
-                        // Or the current field buffer won't be sync with what is displayed
                         form_driver(f, REQ_NEXT_FIELD);
                         form_driver(f, REQ_PREV_FIELD);
 
@@ -347,14 +353,14 @@ int main()
                         form_driver(f, REQ_NEXT_CHAR);
                         break;
 
-                        // Delete the char before cursor
                 case KEY_BACKSPACE:
                 case 127:
+                        /* Delete the char before cursor */
                         form_driver(f, REQ_DEL_PREV);
                         break;
 
-                        // Delete the char under the cursor
                 case KEY_DC:
+                        /* Delete the char under the cursor */
                         form_driver(f, REQ_DEL_CHAR);
                         break;
 
