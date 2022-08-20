@@ -21,10 +21,16 @@
 
 #define UNUSED(x) ((void)(x))
 
+struct screen_t {
+        FORM *form;
+        FIELD **fields;
+        WINDOW *win, *sub;
+};
+
 static const char *console = "/dev/console";
 static const int tty = 2;
 
-static const int w = 40, h = 11;
+static const int width = 40, height = 11;
 static const int padding = 1;
 
 static int switch_tty(int tty)
@@ -42,12 +48,6 @@ static int switch_tty(int tty)
 
         return 0;
 }
-
-struct screen_t {
-        FORM *form;
-        FIELD **fields;
-        WINDOW *win, *sub;
-};
 
 static char *hostname(char *buf, size_t len)
 {
@@ -171,7 +171,7 @@ static FIELD *make_host_label()
                 n = 32;
         }
 
-        pf = make_field(1, n, 1, (w - n) / 2 - 1, pbuf);
+        pf = make_field(1, n, 1, (width - n) / 2 - 1, pbuf);
 
         if (pbuf != buf)
                 free(pbuf);
@@ -244,7 +244,7 @@ static void initialize()
 
         keypad(stdscr, TRUE);
 
-        if (h + 3 > LINES || w > COLS) {
+        if (height + 3 > LINES || width > COLS) {
                 fprintf(stderr, "screen too small (%d x %d)\n",
                         COLS, LINES);
                 endwin();
@@ -272,8 +272,8 @@ static struct screen_t *make_screen()
         struct screen_t *screen;
         int x, y;
 
-        x = (float)( COLS - w) / 2 + 1;
-        y = (float)(LINES - h) / 2 + 1;
+        x = (float)( COLS -  width) / 2 + 1;
+        y = (float)(LINES - height) / 2 + 1;
 
         screen = (struct screen_t *)malloc(sizeof *screen);
         if (0 == screen) {
@@ -281,14 +281,14 @@ static struct screen_t *make_screen()
                 goto err;
         }
 
-        screen->win = newwin(h, w, y, x);
+        screen->win = newwin(height, width, y, x);
         if (0 == screen->win) {
                 fprintf(stderr, "failed to create window\n");
                 goto err;
         }
 
         screen->sub = derwin(
-                screen->win, h - 2 * padding, w - 2 * padding,
+                screen->win, height - 2 * padding, width - 2 * padding,
                 padding, padding);
         if (0 == screen->sub) {
                 fprintf(stderr, "failed to create sub-window\n");
