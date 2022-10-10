@@ -33,6 +33,13 @@ static const int tty = 2;
 static const int width = 40, height = 11;
 static const int padding = 1;
 
+static const struct {
+        const char *label, *cmd;
+} choices[] = {
+        { "shell", "/bin/zsh" },
+        { "dwl", "dwl" }
+};
+
 static int switch_tty(int tty)
 {
         int fd = open(console, O_WRONLY);
@@ -138,14 +145,42 @@ static FIELD *make_passwd_label()
 
 static FIELD *make_passwd_field()
 {
-        FIELD *pf = make_field(1, 14, 7, 14, 0);
-        field_opts_off(pf, O_PUBLIC);
+        FIELD *pf = make_field(1, 1, 7, 14, 0);
+
+        if (pf)
+                field_opts_off(pf, O_PUBLIC);
+
         return pf;
 }
 
 static FIELD *make_target_field()
 {
-        return make_field(1, 14, 3, 13, "< xinitrc   >");
+        const char *buf[16], **pbuf = buf;
+        size_t i, n, buflen = sizeof buf / sizeof *buf;
+
+        FIELD *pf;
+
+        n = sizeof choices / sizeof *choices;
+        if (n > buflen) {
+                pbuf = malloc(n * sizeof *buf);
+                if (0 == pbuf)
+                        return 0;
+        }
+
+        pf = make_field(1, 10, 3, 15, 0);
+        if (pf) {
+                field_opts_off(pf, O_EDIT);
+
+                for (i = 0; i < n; ++i)
+                        pbuf[i] = choices[i].label;
+
+                set_field_type(pf, TYPE_ENUM, pbuf, 0, 0);
+        }
+
+        if (pbuf != buf)
+                free(pbuf);
+
+        return pf;
 }
 
 static FIELD *make_host_label()
@@ -189,7 +224,7 @@ static void free_fields(FIELD **pptr)
 
 static FIELD **make_fields()
 {
-        FIELD **fields = (FIELD **)malloc(7 * sizeof(FIELD *));
+        FIELD **fields = (FIELD **)malloc(9 * sizeof(FIELD *));
         if (0 == fields)
                 return 0;
 
@@ -202,10 +237,14 @@ static FIELD **make_fields()
         fields[4] = make_passwd_label();
         fields[5] = make_passwd_field();
 
-        fields[6] = 0;
+        fields[6] = make_field(1, 1, 3, 13, "<");
+        fields[7] = make_field(1, 1, 3, 27, ">");
+
+        fields[8] = 0;
 
         if (0 == fields[0] || 0 == fields[1] || 0 == fields[2] ||
-            0 == fields[3] || 0 == fields[4] || 0 == fields[5]) {
+            0 == fields[3] || 0 == fields[4] || 0 == fields[5] ||
+            0 == fields[6] || 0 == fields[7]) {
                 free_fields(fields);
                 return 0;
         }
@@ -340,11 +379,13 @@ int main()
         set_form_sub(screen->form, screen->sub);
 
         post_form(screen->form);
-
         draw_screen(screen);
 
         f = screen->form;
         fs = screen->fields;
+
+        form_driver(f, REQ_NEXT_CHOICE);
+        draw_screen(screen);
 
         for (c = getch(); c != KEY_F(1); c = getch()) {
                 switch (c) {
@@ -355,6 +396,12 @@ int main()
                         form_driver(f, REQ_PREV_FIELD);
 
                         move(LINES - 3, 2);
+
+                        pbuf = wstrim(field_buffer(fs[1], 0), buf, sizeof buf);
+                        printw("[%s] : ", pbuf);
+
+                        if (pbuf != buf)
+                                free(pbuf);
 
                         pbuf = wstrim(field_buffer(fs[3], 0), buf, sizeof buf);
                         printw("[%s] : ", pbuf);
@@ -373,22 +420,27 @@ int main()
                         pos_form_cursor(f);
                         break;
 
-                case KEY_DOWN:
+                case '\t':
                         form_driver(f, REQ_NEXT_FIELD);
-                        form_driver(f, REQ_END_LINE);
-                        break;
-
-                case KEY_UP:
-                        form_driver(f, REQ_PREV_FIELD);
-                        form_driver(f, REQ_END_LINE);
+                        form_driver(f, REQ_END_FIELD);
                         break;
 
                 case KEY_LEFT:
-                        form_driver(f, REQ_PREV_CHAR);
+                        if (fs[1] == current_field(f)) {
+                                form_driver(f, REQ_PREV_CHOICE);
+                        }
+                        else {
+                                form_driver(f, REQ_PREV_CHAR);
+                        }
                         break;
 
                 case KEY_RIGHT:
-                        form_driver(f, REQ_NEXT_CHAR);
+                        if (fs[1] == current_field(f)) {
+                                form_driver(f, REQ_NEXT_CHOICE);
+                        }
+                        else {
+                                form_driver(f, REQ_NEXT_CHAR);
+                        }
                         break;
 
                 case KEY_BACKSPACE:
