@@ -296,7 +296,7 @@ static void initialize()
 static void draw_screen(struct screen_t *screen)
 {
         if (screen) {
-                mvprintw(0, 0, "F1 reboot  F2 shutdown");
+                mvprintw(0, 0, "F1 quit  F2 print");
                 refresh();
 
                 box(screen->win, 0, 0);
