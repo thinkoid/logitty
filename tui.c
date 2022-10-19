@@ -19,7 +19,20 @@
 
 #include <utils.h>
 
+#include "run.h"
+
 #define UNUSED(x) ((void)(x))
+
+static char *shell_startup[] = { "/bin/zsh", 0 };
+static char *dwl_startup[] = { "/usr/local/bin/dwl", 0 };
+
+static const struct {
+        const char *label;
+        char **argv;
+} startups[] = {
+        { "shell", shell_startup },
+        { "dwl",     dwl_startup }
+};
 
 struct screen_t {
         FORM *form;
@@ -32,13 +45,6 @@ static const int tty = 2;
 
 static const int width = 40, height = 11;
 static const int padding = 1;
-
-static const struct {
-        const char *label, *cmd;
-} choices[] = {
-        { "shell", "/bin/zsh" },
-        { "dwl", "dwl" }
-};
 
 static int switch_tty(int tty)
 {
@@ -107,6 +113,20 @@ static char *wstrim(const char *from, char *to, size_t len)
         return to;
 }
 
+static char **
+program_argv(const char *startup)
+{
+        size_t i;
+
+        for (i = 0; i < sizeof startups / sizeof *startups; ++i) {
+                if (0 == strcmp(startup, startups[i].label)) {
+                        return startups[i].argv;
+                }
+        }
+
+        return 0;
+}
+
 static FIELD *make_field(int h, int w, int y, int x, const char *label)
 {
         FIELD *pf = new_field(h, w, y, x, 0, 0);
@@ -153,16 +173,16 @@ static FIELD *make_passwd_field()
         return pf;
 }
 
-static FIELD *make_target_field()
+static FIELD *make_startup_field()
 {
         const char *buf[16], **pbuf = buf;
         size_t i, n, buflen = sizeof buf / sizeof *buf;
 
         FIELD *pf;
 
-        n = sizeof choices / sizeof *choices;
-        if (n > buflen) {
-                pbuf = malloc(n * sizeof *buf);
+        n = sizeof startups / sizeof *startups;
+        if (n + 1 > buflen) {
+                pbuf = malloc((n + 1) * sizeof *buf);
                 if (0 == pbuf)
                         return 0;
         }
@@ -172,8 +192,9 @@ static FIELD *make_target_field()
                 field_opts_off(pf, O_EDIT);
 
                 for (i = 0; i < n; ++i)
-                        pbuf[i] = choices[i].label;
+                        pbuf[i] = startups[i].label;
 
+                pbuf[i] = 0;
                 set_field_type(pf, TYPE_ENUM, pbuf, 0, 0);
         }
 
@@ -229,7 +250,7 @@ static FIELD **make_fields()
                 return 0;
 
         fields[0] = make_host_label();
-        fields[1] = make_target_field();
+        fields[1] = make_startup_field();
 
         fields[2] = make_login_label();
         fields[3] = make_login_field();
@@ -296,7 +317,7 @@ static void initialize()
 static void draw_screen(struct screen_t *screen)
 {
         if (screen) {
-                mvprintw(0, 0, "F1 quit  F2 print");
+                mvprintw(0, 0, "F1 reboot  F2 shutdown");
                 refresh();
 
                 box(screen->win, 0, 0);
@@ -353,10 +374,22 @@ err:
         return 0;
 }
 
+static char *
+field_buffer_trim(FIELD *f)
+{
+        char buf[256], *pbuf;
+
+        pbuf = wstrim(field_buffer(f, 0), buf, sizeof buf);
+        if (pbuf == buf)
+                pbuf = strdup(buf);
+
+        return pbuf;
+}
+
 int main()
 {
-        int c;
-        char buf[256], *pbuf;
+        int c, cont = 1;
+        char *startup, *username, *password, **argv;
 
         FORM *f = 0;
         FIELD **fs = 0;
@@ -387,37 +420,46 @@ int main()
         form_driver(f, REQ_NEXT_CHOICE);
         draw_screen(screen);
 
-        for (c = getch(); c != KEY_F(1); c = getch()) {
+        while(cont && ERR != (c = getch())) {
                 switch (c) {
+                case KEY_F(1):
+                        endwin();
+                        execvp("reboot", (char *[]){ "reboot", 0 });
+                        break;
+
                 case KEY_F(2):
+                        endwin();
+                        execvp("shutdown", (char *[]){ "shutdown", 0 });
+                        break;
+
+                case '\n': case KEY_ENTER: {
                         form_driver(f, REQ_VALIDATION);
 
                         form_driver(f, REQ_NEXT_FIELD);
                         form_driver(f, REQ_PREV_FIELD);
 
-                        move(LINES - 3, 2);
+                        startup  = field_buffer_trim(fs[1]);
+                        if (0 == (argv = program_argv(startup))) {
+                                fprintf(stderr, "invalid startup label %s\n", startup);
+                                free(startup);
+                                break;
+                        }
 
-                        pbuf = wstrim(field_buffer(fs[1], 0), buf, sizeof buf);
-                        printw("[%s] : ", pbuf);
+                        username = field_buffer_trim(fs[3]);
+                        password = field_buffer_trim(fs[5]);
 
-                        if (pbuf != buf)
-                                free(pbuf);
+                        endwin();
+                        run(username, password, argv);
 
-                        pbuf = wstrim(field_buffer(fs[3], 0), buf, sizeof buf);
-                        printw("[%s] : ", pbuf);
+                        free(startup);
+                        free(username);
+                        free(password);
 
-                        if (pbuf != buf)
-                                free(pbuf);
+                        startup = username = password = 0;
 
-                        pbuf = wstrim(field_buffer(fs[5], 0), buf, sizeof buf);
-                        printw("[%s]", pbuf);
-
-                        if (pbuf != buf)
-                                free(pbuf);
-
-                        refresh();
-
+                        draw_screen(screen);
                         pos_form_cursor(f);
+                }
                         break;
 
                 case '\t':

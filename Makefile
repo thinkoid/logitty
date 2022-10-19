@@ -6,7 +6,7 @@ CFLAGS = -g -O -pedantic $(WARNINGS)
 CPPFLAGS = -I.
 
 LDFLAGS =
-LIBS = -lncurses -lform
+LIBS = -lncurses -lform -lpam
 
 DEPENDDIR = ./.deps
 DEPENDFLAGS = -M
