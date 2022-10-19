@@ -71,3 +71,31 @@ char* snprintf_(char* pbuf, size_t len, char const* fmt, ...)
         return ptr;
 }
 
+char *wstrim(const char *from, char *to, size_t len)
+{
+        size_t n;
+        const char *pbeg, *pend;
+
+        for (pbeg = from; *pbeg && *pbeg == ' '; ++pbeg) ;
+        if (0 == *pbeg) {
+                *to = 0;
+                return to;
+        }
+
+        n = strlen(pbeg);
+
+        for (pend = pbeg + n - 1; pend != pbeg && *pend == ' '; --pend) ;
+        ++pend;
+
+        n = pend - pbeg;
+        if (n >= len) {
+                to = (char *)malloc(n + 1);
+                if (0 == to)
+                        return 0;
+        }
+
+        memcpy(to, pbeg, pend - pbeg);
+        to[n] = 0;
+
+        return to;
+}

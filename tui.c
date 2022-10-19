@@ -26,7 +26,7 @@
 
 static void signal_handler(int n)
 {
-        printf(" --> caught : %d\n", n);
+        UNUSED(n);
 }
 
 static void signals()
@@ -34,35 +34,6 @@ static void signals()
         static int arr[] = { SIGINT, SIGTERM, SIGTSTP, SIGQUIT };
         for (size_t i = 0; i < sizeof arr / sizeof *arr; ++i)
                 signal(arr[1], signal_handler);
-}
-
-static char *wstrim(const char *from, char *to, size_t len)
-{
-        size_t n;
-        const char *pbeg, *pend;
-
-        for (pbeg = from; *pbeg && *pbeg == ' '; ++pbeg) ;
-        if (0 == *pbeg) {
-                *to = 0;
-                return to;
-        }
-
-        n = strlen(pbeg);
-
-        for (pend = pbeg + n - 1; pend != pbeg && *pend == ' '; --pend) ;
-        ++pend;
-
-        n = pend - pbeg;
-        if (n >= len) {
-                to = (char *)malloc(n + 1);
-                if (0 == to)
-                        return 0;
-        }
-
-        memcpy(to, pbeg, pend - pbeg);
-        to[n] = 0;
-
-        return to;
 }
 
 static char *
