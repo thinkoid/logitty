@@ -17,33 +17,14 @@
 #include <ncurses.h>
 #include <form.h>
 
-#include <utils.h>
+#include "ui.h"
+#include "utils.h"
 
 #define UNUSED(x) ((void)(x))
 
-static char *shell_startup[] = { "/bin/zsh", 0 };
-static char *dwl_startup[] = { "/usr/local/bin/dwl", 0 };
-
-struct startup_t
-{
-        const char *label;
-        char **argv;
-};
-
-static const struct startup_t
-startups[] = {
-        { "shell", shell_startup },
-        { "dwl",     dwl_startup }
-};
-
-struct screen_t {
-        FORM *form;
-        FIELD **fields;
-        WINDOW *win, *sub;
-};
-
-static const int width = 40, height = 11;
-static const int padding = 1;
+const int box_width   = 40;
+const int box_height  = 11;
+const int box_padding =  1;
 
 static char *hostname(char *buf, size_t len)
 {
@@ -101,14 +82,14 @@ static FIELD *make_passwd_field()
         return pf;
 }
 
-static FIELD *make_startup_field()
+static FIELD *make_startup_field(char **labels)
 {
+        FIELD *pf;
+
         const char *buf[16], **pbuf = buf;
         size_t i, n, buflen = sizeof buf / sizeof *buf;
 
-        FIELD *pf;
-
-        n = sizeof startups / sizeof *startups;
+        for (n = 0; labels[n]; ++n) ;
         if (n + 1 > buflen) {
                 pbuf = malloc((n + 1) * sizeof *buf);
                 if (0 == pbuf)
@@ -120,7 +101,7 @@ static FIELD *make_startup_field()
                 field_opts_off(pf, O_EDIT);
 
                 for (i = 0; i < n; ++i)
-                        pbuf[i] = startups[i].label;
+                        pbuf[i] = labels[i];
 
                 pbuf[i] = 0;
                 set_field_type(pf, TYPE_ENUM, pbuf, 0, 0);
@@ -155,7 +136,7 @@ static FIELD *make_host_label()
                 n = 32;
         }
 
-        pf = make_field(1, n, 1, (width - n) / 2 - 1, pbuf);
+        pf = make_field(1, n, 1, (box_width - n) / 2 - 1, pbuf);
 
         if (pbuf != buf)
                 free(pbuf);
@@ -171,14 +152,14 @@ static void free_fields(FIELD **pptr)
         }
 }
 
-static FIELD **make_fields()
+static FIELD **make_fields(char **labels)
 {
         FIELD **fields = (FIELD **)malloc(9 * sizeof(FIELD *));
         if (0 == fields)
                 return 0;
 
         fields[0] = make_host_label();
-        fields[1] = make_startup_field();
+        fields[1] = make_startup_field(labels);
 
         fields[2] = make_login_label();
         fields[3] = make_login_field();
@@ -223,7 +204,7 @@ void free_screen(struct screen_t *screen)
         }
 }
 
-void initialize()
+static void initialize(int width, int height)
 {
         initscr();
         atexit((void(*)(void))endwin);
@@ -253,13 +234,16 @@ void draw_screen(struct screen_t *screen)
         }
 }
 
-struct screen_t *make_screen()
+struct screen_t *
+make_screen(char **labels)
 {
         struct screen_t *screen;
         int x, y;
 
-        x = (float)( COLS -  width) / 2 + 1;
-        y = (float)(LINES - height) / 2 + 1;
+        x = (float)( COLS - box_width)  / 2 + 1;
+        y = (float)(LINES - box_height) / 2 + 1;
+
+        initialize(box_width, box_height);
 
         screen = (struct screen_t *)malloc(sizeof *screen);
         if (0 == screen) {
@@ -267,21 +251,23 @@ struct screen_t *make_screen()
                 goto err;
         }
 
-        screen->win = newwin(height, width, y, x);
+        screen->win = newwin(box_height, box_width, y, x);
         if (0 == screen->win) {
                 fprintf(stderr, "failed to create window\n");
                 goto err;
         }
 
         screen->sub = derwin(
-                screen->win, height - 2 * padding, width - 2 * padding,
-                padding, padding);
+                screen->win,
+                box_height - 2 * box_padding,
+                box_width - 2 * box_padding,
+                box_padding, box_padding);
         if (0 == screen->sub) {
                 fprintf(stderr, "failed to create sub-window\n");
                 goto err;
         }
 
-        screen->fields = make_fields();
+        screen->fields = make_fields(labels);
         if (0 == screen->fields) {
                 fprintf(stderr, "failed to create form fields\n");
                 goto err;
@@ -304,32 +290,4 @@ struct screen_t *make_screen()
 err:
         free_screen(screen);
         return 0;
-}
-
-char **startup_argv(const char *startup)
-{
-        size_t i;
-
-        for (i = 0; i < sizeof startups / sizeof *startups; ++i) {
-                if (0 == strcmp(startup, startups[i].label)) {
-                        return startups[i].argv;
-                }
-        }
-
-        return 0;
-}
-
-FORM *screen_form(struct screen_t *screen)
-{
-        return screen->form;
-}
-
-FIELD **screen_fields(struct screen_t *screen)
-{
-        return screen->fields;
-}
-
-void refresh_window(struct screen_t *screen)
-{
-        wrefresh(screen->win);
 }

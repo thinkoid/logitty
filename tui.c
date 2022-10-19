@@ -24,6 +24,14 @@
 
 #define UNUSED(x) ((void)(x))
 
+static struct {
+        char *label;
+        char *argv[16];
+} startups[] = {
+        { "shell", { "/bin/zsh", 0 } },
+        { "dwl",   { "/usr/local/bin/dwl", 0 }  }
+};
+
 static void signal_handler(int n)
 {
         UNUSED(n);
@@ -48,25 +56,70 @@ field_buffer_trim(FIELD *f)
         return pbuf;
 }
 
+static char **
+startup_argvs(const char *startup)
+{
+        size_t i;
+
+        for (i = 0; i < sizeof startups / sizeof *startups; ++i) {
+                if (0 == strcmp(startup, startups[i].label)) {
+                        return startups[i].argv;
+                }
+        }
+
+        return 0;
+}
+
+static char **
+startup_labels(char **ppbuf, size_t len)
+{
+        size_t i;
+
+        if (len - 1 < sizeof startups / sizeof *startups) {
+                len = sizeof startups / sizeof *startups + 1;
+
+                ppbuf = malloc(len * sizeof(char *));
+                if (0 == ppbuf)
+                        return 0;
+
+                memset(ppbuf, 0, len * sizeof(char *));
+        }
+
+        for (i = 0; i < sizeof startups / sizeof *startups; ++i)
+                ppbuf[i] = startups[i].label;
+
+        return ppbuf;
+}
+
 int main()
 {
         int c, cont = 1;
+
         char *startup, *username, *password, **argv;
+        char *labels[16], **plabels = labels;
+
+        struct screen_t *screen = 0;
 
         FORM *f = 0;
         FIELD **fs = 0;
 
-        struct screen_t *screen = 0;
-
-        initialize();
         signals();
 
-        screen = make_screen();
-        if (0 == screen)
-                exit(1);
+        {
+                plabels = labels;
+                plabels = startup_labels(labels, sizeof labels / sizeof *labels);
 
-        f = screen_form(screen);
-        fs = screen_fields(screen);
+                screen = make_screen(plabels);
+
+                if (plabels != labels)
+                        free(plabels);
+
+                if (0 == screen)
+                        exit(1);
+        }
+
+        f  = screen->form;
+        fs = screen->fields;
 
         form_driver(f, REQ_NEXT_CHOICE);
         draw_screen(screen);
@@ -90,7 +143,7 @@ int main()
                         form_driver(f, REQ_PREV_FIELD);
 
                         startup  = field_buffer_trim(fs[1]);
-                        if (0 == (argv = startup_argv(startup))) {
+                        if (0 == (argv = startup_argvs(startup))) {
                                 fprintf(stderr, "invalid startup label %s\n", startup);
                                 free(startup);
                                 break;
@@ -152,7 +205,8 @@ int main()
                         break;
                 }
 
-                refresh_window(screen);
+
+                wrefresh(screen->win);
         }
 
         free_screen(screen);

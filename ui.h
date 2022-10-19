@@ -3,19 +3,15 @@
 #ifndef TUI_UI_H
 #define TUI_UI_H
 
-struct screen_t;
+struct screen_t {
+        FORM *form;
+        FIELD **fields;
+        WINDOW *win, *sub;
+};
 
-void initialize();
-
-struct screen_t *make_screen();
+struct screen_t *make_screen(char **labels);
 void free_screen(struct screen_t *screen);
 
 void draw_screen(struct screen_t *screen);
-void refresh_window(struct screen_t *screen);
-
-FORM *screen_form(struct screen_t *screen);
-FIELD **screen_fields(struct screen_t *screen);
-
-char **startup_argv(const char *startup);
 
 #endif /* TUI_UI_H */
