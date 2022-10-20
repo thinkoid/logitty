@@ -22,9 +22,9 @@
 
 #define UNUSED(x) ((void)(x))
 
-const int box_width   = 40;
-const int box_height  = 11;
-const int box_padding =  1;
+static const int box_width   = 40;
+static const int box_height  = 11;
+static const int box_padding =  1;
 
 static char *hostname(char *buf, size_t len)
 {

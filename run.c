@@ -249,25 +249,32 @@ register_utmp(struct utmp *p, const char *username, pid_t pid)
 	p->ut_pid = pid;
 
         s = ttyname(STDIN_FILENO);
-        if (sizeof(p->ut_line) < strlen(s) - strlen("/dev/") + 1)
+        if (sizeof(p->ut_line) < strlen(s) - strlen("/dev/") + 1) {
+                fprintf(stderr, "insufficient space (utmp::ut_line)\n");
                 return ret;
+        }
 	strcpy(p->ut_line, s + strlen("/dev/"));
 
-        if (sizeof(p->ut_id) < strlen(s) - strlen("/dev/tty") + 1)
+        if (sizeof(p->ut_id) < strlen(s) - strlen("/dev/tty") + 1) {
+                fprintf(stderr, "insufficient space (utmp::ut_id)\n");
                 return ret;
+        }
 	strcpy(p->ut_id, ttyname(STDIN_FILENO) + strlen("/dev/tty"));
 
 	time((long int *)&p->ut_time);
 
-        if (sizeof(p->ut_user) < strlen(username) + 1)
+        if (sizeof(p->ut_user) < strlen(username) + 1) {
+                fprintf(stderr, "insufficient space (utmp::ut_user)\n");
                 return ret;
+        }
 	strncpy(p->ut_user, username, UT_NAMESIZE);
 
 	memset(p->ut_host, 0, UT_HOSTSIZE);
 	p->ut_addr = 0;
 
 	setutent();
-	ret = !pututline(p);
+	if ((ret = !pututline(p)))
+                fprintf(stderr, "pututline fail : %s\n", strerror(errno));
         endutent();
 
         return ret;
@@ -285,7 +292,8 @@ unregister_utmp(struct utmp *p)
 	memset(p->ut_user, 0, UT_NAMESIZE);
 
         setutent();
-	ret = !pututline(p);
+	if ((ret = !pututline(p)))
+                fprintf(stderr, "pututline fail : %s\n", strerror(errno));
 	endutent();
 
         return ret;
