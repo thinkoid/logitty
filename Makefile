@@ -14,7 +14,7 @@ DEPENDFLAGS = -M
 SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c,%.o,$(SRCS))
 
-TARGET = tui
+TARGET = logitty
 
 all: $(TARGET)
 
