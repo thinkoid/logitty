@@ -204,23 +204,6 @@ void free_screen(struct screen_t *screen)
         }
 }
 
-static void initialize(int width, int height)
-{
-        initscr();
-        atexit((void(*)(void))endwin);
-
-        noecho();
-        cbreak();
-
-        keypad(stdscr, TRUE);
-
-        if (height + 3 > LINES || width > COLS) {
-                fprintf(stderr, "screen too small (%d x %d)\n",
-                        COLS, LINES);
-                exit(1);
-        }
-}
-
 void draw_screen(struct screen_t *screen)
 {
         if (screen) {
@@ -234,6 +217,25 @@ void draw_screen(struct screen_t *screen)
         }
 }
 
+int init_screen()
+{
+        initscr();
+        atexit((void(*)(void))endwin);
+
+        noecho();
+        cbreak();
+
+        keypad(stdscr, TRUE);
+
+        if (box_height + 3 > LINES || box_width > COLS) {
+                fprintf(stderr, "screen too small (%d x %d)\n",
+                        COLS, LINES);
+                return 1;
+        }
+
+        return 0;
+}
+
 struct screen_t *
 make_screen(char **labels)
 {
@@ -242,8 +244,6 @@ make_screen(char **labels)
 
         x = (float)( COLS - box_width)  / 2 + 1;
         y = (float)(LINES - box_height) / 2 + 1;
-
-        initialize(box_width, box_height);
 
         screen = (struct screen_t *)malloc(sizeof *screen);
         if (0 == screen) {

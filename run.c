@@ -302,7 +302,7 @@ unregister_utmp(struct utmp *p)
 static int
 do_run(struct passwd *passwd, char **argv, char **envs)
 {
-        int pid, status;
+        int pid, ret, status;
         struct utmp utmpent;
 
         UNUSED(argv);
@@ -332,9 +332,11 @@ do_run(struct passwd *passwd, char **argv, char **envs)
                 exit(0);
         }
 
-        register_utmp(&utmpent, passwd->pw_name, pid);
+        ret = register_utmp(&utmpent, passwd->pw_name, pid);
         waitpid(pid, &status, 0);
-        unregister_utmp(&utmpent);
+
+        if (0 == ret)
+                unregister_utmp(&utmpent);
 
         return status;
 }

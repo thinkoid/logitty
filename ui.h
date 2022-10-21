@@ -9,6 +9,8 @@ struct screen_t {
         WINDOW *win, *sub;
 };
 
+int init_screen();
+
 struct screen_t *make_screen(char **labels);
 void free_screen(struct screen_t *screen);
 

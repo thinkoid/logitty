@@ -37,7 +37,7 @@ static void signal_handler(int n)
         UNUSED(n);
 }
 
-static void signals()
+static void mask_signals()
 {
         static int arr[] = { SIGINT, SIGTERM, SIGTSTP, SIGQUIT };
         for (size_t i = 0; i < sizeof arr / sizeof *arr; ++i)
@@ -91,32 +91,14 @@ startup_labels(char **ppbuf, size_t len)
         return ppbuf;
 }
 
-int main()
+static void
+loop(struct screen_t *screen)
 {
         int c, cont = 1;
-
         char *startup, *username, *password, **argv;
-        char *labels[16], **plabels = labels;
-
-        struct screen_t *screen = 0;
 
         FORM *f = 0;
         FIELD **fs = 0;
-
-        signals();
-
-        {
-                plabels = labels;
-                plabels = startup_labels(labels, sizeof labels / sizeof *labels);
-
-                screen = make_screen(plabels);
-
-                if (plabels != labels)
-                        free(plabels);
-
-                if (0 == screen)
-                        exit(1);
-        }
 
         f  = screen->form;
         fs = screen->fields;
@@ -208,7 +190,39 @@ int main()
 
                 wrefresh(screen->win);
         }
+}
 
+static struct screen_t *
+make_screen_from_labels()
+{
+        struct screen_t *screen;
+        char *labels[16], **plabels = labels;
+
+        plabels = labels;
+        plabels = startup_labels(labels, sizeof labels / sizeof *labels);
+
+        screen = make_screen(plabels);
+
+        if (plabels != labels)
+                free(plabels);
+
+        return screen;
+}
+
+int main()
+{
+        struct screen_t *screen = 0;
+
+        mask_signals();
+
+        if (init_screen())
+                return 1;
+
+        screen = make_screen_from_labels();
+        if (0 == screen)
+                return 1;
+
+        loop(screen);
         free_screen(screen);
 
         return 0;
