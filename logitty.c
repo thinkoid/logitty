@@ -28,8 +28,8 @@ static struct {
         char *label;
         char *argv[16];
 } startups[] = {
-        { "shell", { "/bin/zsh", 0 } },
-        { "dwl",   { "/usr/local/bin/dwl", 0 }  }
+        { "shell", { "/usr/bin/zsh", 0 } },
+        { "dwl",   { "/usr/local/bin/run-dwl.sh", 0 }  }
 };
 
 static void signal_handler(int n)
