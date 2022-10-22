@@ -191,7 +191,7 @@ setup_pam(const char *username, const char *password)
 
         int status;
 
-        if (PAM_SUCCESS != (status = pam_start("tui", 0, &pamc, &pamh)) ||
+        if (PAM_SUCCESS != (status = pam_start("logitty", 0, &pamc, &pamh)) ||
             PAM_SUCCESS != (status = pam_authenticate(pamh, 0)) ||
             PAM_SUCCESS != (status = pam_acct_mgmt(pamh, 0)) ||
             PAM_SUCCESS != (status = pam_setcred(pamh, PAM_ESTABLISH_CRED))) {
