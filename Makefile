@@ -1,5 +1,7 @@
 # -*- mode: makefile; -*-
 
+PREFIX = /usr/local
+
 WARNINGS = -W -Wall -Werror
 
 CFLAGS = -g -O -pedantic $(WARNINGS)
@@ -40,3 +42,6 @@ clean:
 
 realclean:
 	@rm -rf $(TARGET) $(OBJS) $(DEPENDDIR)
+
+install: $(TARGET)
+	@install $^ $(PREFIX)/bin
