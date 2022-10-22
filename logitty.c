@@ -81,12 +81,11 @@ startup_labels(char **ppbuf, size_t len)
                 ppbuf = malloc(len * sizeof(char *));
                 if (0 == ppbuf)
                         return 0;
-
-                memset(ppbuf, 0, len * sizeof(char *));
         }
 
         for (i = 0; i < sizeof startups / sizeof *startups; ++i)
                 ppbuf[i] = startups[i].label;
+        ppbuf[i] = 0;
 
         return ppbuf;
 }
