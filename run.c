@@ -313,7 +313,7 @@ do_run(struct passwd *passwd, char **argv, char **envs)
                         return 1;
                 }
 
-                if (setgid(passwd->pw_gid) || seteuid(passwd->pw_uid)) {
+                if (setgid(passwd->pw_gid) || setuid(passwd->pw_uid)) {
                         fprintf(stderr, "setup uid, gid : %s\n", strerror(errno));
                         return 1;
                 }
