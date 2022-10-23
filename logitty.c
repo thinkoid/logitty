@@ -28,7 +28,7 @@ static struct {
         char *label;
         char *argv[16];
 } startups[] = {
-        { "shell", { "/usr/bin/zsh", 0 } },
+        { "shell", { "/bin/bash", 0 } },
         { "dwl",   { "/usr/local/bin/run-dwl.sh", 0 }  }
 };
 
