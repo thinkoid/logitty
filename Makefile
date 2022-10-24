@@ -45,6 +45,8 @@ realclean:
 
 install: $(TARGET)
 	@install $^ $(PREFIX)/bin
-	@cp -r etc/pam.d/* /etc/pam.d/
+	@cp -r etc/pam.d/logitty /etc/pam.d/
+	@chown root:root /etc/pam.d/logitty
 	@cp -r etc/s6/logitty-log /etc/s6/sv/
 	@cp -r etc/s6/logitty-srv /etc/s6/sv/
+	@chown -R root:root etc/s6/logitty*
