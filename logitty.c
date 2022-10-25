@@ -32,18 +32,6 @@ static struct {
         { "dwl",   { "/usr/local/bin/run-dwl.sh", 0 }  }
 };
 
-static void signal_handler(int n)
-{
-        UNUSED(n);
-}
-
-static void mask_signals()
-{
-        static int arr[] = { SIGINT, SIGTERM, SIGTSTP, SIGQUIT };
-        for (size_t i = 0; i < sizeof arr / sizeof *arr; ++i)
-                signal(arr[1], signal_handler);
-}
-
 static char *
 field_buffer_trim(FIELD *f)
 {
@@ -211,8 +199,6 @@ make_screen_from_labels()
 int main()
 {
         struct screen_t *screen = 0;
-
-        mask_signals();
 
         if (init_screen())
                 return 1;
