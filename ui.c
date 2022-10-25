@@ -212,6 +212,7 @@ void draw_screen(struct screen_t *screen)
 {
         if (screen) {
                 mvprintw(0, 0, "F1 reboot  F2 shutdown");
+                mvprintw(LINES - 1, 1, "C-c Reset screen");
                 refresh();
 
                 box(screen->win, 0, 0);
