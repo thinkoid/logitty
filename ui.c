@@ -26,6 +26,8 @@ static const int box_width   = 40;
 static const int box_height  = 11;
 static const int box_padding =  1;
 
+static const int nfields = 9;
+
 static char *hostname(char *buf, size_t len)
 {
         struct utsname utsname;
@@ -144,19 +146,19 @@ static FIELD *make_host_label()
         return pf;
 }
 
-static void free_fields(FIELD **pptr)
+static void free_fields(FIELD **pptr, FIELD **ppend)
 {
-        if (pptr) {
-                for (FIELD **pp = pptr; *pp; ++pp)
-                        free(*pp);
-        }
+        for (; pptr != ppend; ++pptr)
+                free(*pptr);
 }
 
 static FIELD **make_fields(char **labels)
 {
-        FIELD **fields = (FIELD **)malloc(9 * sizeof(FIELD *));
+        FIELD **fields = (FIELD **)malloc(nfields * sizeof(FIELD *));
         if (0 == fields)
                 return 0;
+
+        memset(fields, 0, nfields * sizeof(FIELD *));
 
         fields[0] = make_host_label();
         fields[1] = make_startup_field(labels);
@@ -175,7 +177,8 @@ static FIELD **make_fields(char **labels)
         if (0 == fields[0] || 0 == fields[1] || 0 == fields[2] ||
             0 == fields[3] || 0 == fields[4] || 0 == fields[5] ||
             0 == fields[6] || 0 == fields[7]) {
-                free_fields(fields);
+                free_fields(fields, fields + nfields);
+                free(fields);
                 return 0;
         }
 
@@ -192,7 +195,8 @@ void free_screen(struct screen_t *screen)
                         free_form(ptr);
                 }
 
-                free_fields(screen->fields);
+                free_fields(screen->fields, screen->fields + nfields);
+                free(screen->fields);
 
                 if (screen->sub)
                         delwin(screen->sub);
