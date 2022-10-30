@@ -102,7 +102,7 @@ loop(struct screen_t *screen)
 
                 case KEY_F(2):
                         endwin();
-                        execvp("shutdown", (char *[]){ "halt", "-p", 0 });
+                        execvp("halt", (char *[]){ "halt", "-p", 0 });
                         break;
 
                 case '\n': case KEY_ENTER: {
